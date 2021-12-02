@@ -1,15 +1,23 @@
 package dingrobot_test
 
 import (
+	"crypto/tls"
 	"log"
+	"net/http"
 
-	"github.com/royeo/dingrobot"
+	"github.com/binary4cat/dingrobot"
 )
 
 func ExampleSendText() {
 	// You should replace the webhook here with your own.
 	webhook := "https://oapi.dingtalk.com/robot/send?access_token=xxx"
+	transport := &http.Transport{
+		DisableKeepAlives: true, //短链接
+		TLSClientConfig:   &tls.Config{InsecureSkipVerify: true},
+	}
+	client := &http.Client{Transport: transport}
 	robot := dingrobot.NewRobot(webhook)
+	robot.SetHTTPClient(client)
 
 	content := "我就是我,  @1825718XXXX 是不一样的烟火"
 	atMobiles := []string{"1825718XXXX"}

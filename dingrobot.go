@@ -1,7 +1,6 @@
 package dingrobot
 
 import (
-	"bytes"
 	"crypto/hmac"
 	"crypto/sha256"
 	"encoding/base64"
@@ -10,6 +9,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"net/url"
+	"strings"
 	"time"
 )
 
@@ -20,12 +20,14 @@ type Roboter interface {
 	SendMarkdown(title, text string, atMobiles []string, isAtAll bool) error
 	SendActionCard(title, text, singleTitle, singleURL, btnOrientation, hideAvatar string) error
 	SetSecret(secret string)
+	SetHTTPClient(cl *http.Client)
 }
 
 // Robot represents a dingtalk custom robot that can send messages to groups.
 type Robot struct {
 	webHook string
 	secret  string
+	hclient *http.Client
 }
 
 // NewRobot returns a roboter that can send messages.
@@ -36,6 +38,10 @@ func NewRobot(webHook string) Roboter {
 // SetSecret set the secret to add additional signature when send request
 func (r *Robot) SetSecret(secret string) {
 	r.secret = secret
+}
+
+func (r *Robot) SetHTTPClient(hl *http.Client) {
+	r.hclient = hl
 }
 
 // SendText send a text type message.
@@ -110,7 +116,20 @@ func (r Robot) send(msg interface{}) error {
 	if len(r.secret) != 0 {
 		webURL += genSignedURL(r.secret)
 	}
-	resp, err := http.Post(webURL, "application/json", bytes.NewReader(m))
+
+	httpcl := http.DefaultClient
+	req, err := http.NewRequest(http.MethodPost, webURL, strings.NewReader(string(m)))
+	if err != nil {
+		return err
+	}
+	req.Header = map[string][]string{
+		"content-type": {"application/json"},
+	}
+
+	if r.hclient != nil {
+		httpcl = r.hclient
+	}
+	resp, err := httpcl.Do(req)
 	if err != nil {
 		return err
 	}
